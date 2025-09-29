@@ -1,0 +1,17 @@
+knowledge_sources:
+  - https://docs.github.com
+  - https://docs.cloud.coinbase.com/advanced-trade-api
+  - https://docs.python.org/3/
+  - https://doc.rust-lang.org/std/
+  - https://fastapi.tiangolo.com/
+  - https://kubernetes.io/docs/
+
+paths:
+  allow_list:
+    - apps/**
+    - services/**
+    - tests/**
+
+modes:
+  default: diagnostics
+  guarded_write: false

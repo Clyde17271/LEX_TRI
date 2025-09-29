@@ -1,0 +1,59 @@
+name: LEXTRI — Diagnose & Guarded Fix
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+# Security-hardened permissions - minimum required for LEX TRI operation
+permissions:
+  contents: read        # Reduced from write - only read repo contents
+  pull-requests: write  # Required for creating fix PRs
+  issues: write        # Required for diagnostic reports
+  actions: read        # Required for workflow access
+
+# Environment variables controlling scope and write permissions.  The `LEXTRI_SCOPE_ALLOW` variable restricts which paths LEX TRI can modify.  The `LEXTRI_WRITE_OK` secret must be set to 'true' to enable guarded fixes.
+env:
+  LEXTRI_SCOPE_ALLOW: "apps/** services/** tests/**"
+  LEXTRI_WRITE_OK: ${{ secrets.LEXTRI_WRITE_OK }}
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608  # v4.1.0 pinned for security
+        with:
+          token: ${{ github.token }}
+          persist-credentials: false
+      - name: Run temporal diagnostics
+        run: |
+          echo "Running lint and tests (placeholder)"
+          echo "Building VT/TT/DT timelines..."
+          # Here you could invoke lextri_runner.py or your custom diagnostic scripts
+      - name: Attach diagnostics
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: "LEX TRI diagnostics complete."
+            })
+
+  guarded_fix:
+    needs: diagnose
+    if: ${{ env.LEXTRI_WRITE_OK == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608  # v4.1.0 pinned for security
+        with:
+          token: ${{ github.token }}
+          persist-credentials: false
+      - name: Apply guarded fix
+        run: |
+          echo "Checking for patch.diff and applying guarded fix..."
+          # If patch.diff exists, apply the changes in a new branch and open a PR
+          # This block is intentionally left as a placeholder for your implementation
