@@ -1,0 +1,47 @@
+FROM python:3.11-slim
+
+# Install system dependencies for AGI processing
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    gcc \
+    python3-dev \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Security: Create non-root user
+RUN groupadd -r hiveuser && useradd -r -g hiveuser hiveuser
+
+# Create working directory with proper ownership
+WORKDIR /app
+RUN chown hiveuser:hiveuser /app
+
+# Create directories for hive data
+RUN mkdir -p /app/hive_data /app/logs /app/models && \
+    chown -R hiveuser:hiveuser /app
+
+# Install Python dependencies as root, then switch to non-root
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy application source and set ownership
+COPY --chown=hiveuser:hiveuser . .
+
+# Switch to non-root user for security
+USER hiveuser
+
+# Environment variables for hive operation
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+ENV HIVE_NODE_TYPE=coordinator
+
+# Expose hive coordinator port
+EXPOSE 9000
+
+# Health check for hive coordinator
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD python -c "import asyncio; from agi_hive_system import get_hive_coordinator; asyncio.run(get_hive_coordinator().get_swarm_status())" || exit 1
+
+# Command to run hive coordinator
+CMD ["python", "-c", "import asyncio; from agi_hive_system import initialize_hive_system; asyncio.run(initialize_hive_system())"]

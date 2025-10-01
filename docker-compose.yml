@@ -1,0 +1,169 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database with temporal extensions
+  postgres:
+    image: postgres:16-alpine
+    container_name: lextri_postgres
+    environment:
+      POSTGRES_DB: lextri_temporal
+      POSTGRES_USER: lextri_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lextri_secure_password}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+      - ./database/schemas:/schemas
+    ports:
+      - "5432:5432"
+    networks:
+      - lextri_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lextri_user -d lextri_temporal"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # PgVector extension for AI embeddings
+  pgvector:
+    image: pgvector/pgvector:pg16
+    container_name: lextri_pgvector
+    depends_on:
+      - postgres
+    environment:
+      POSTGRES_DB: lextri_temporal
+      POSTGRES_USER: lextri_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lextri_secure_password}
+    volumes:
+      - vector_data:/var/lib/postgresql/data
+    networks:
+      - lextri_network
+
+  # LEX TRI Temporal Agent with database integration
+  lextri_agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.temporal
+    container_name: lextri_temporal_agent
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://lextri_user:${POSTGRES_PASSWORD:-lextri_secure_password}@postgres:5432/lextri_temporal
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: lextri_temporal
+      POSTGRES_USER: lextri_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lextri_secure_password}
+      # AGI API Keys (set in .env file)
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      # Exo integration
+      EXO_API_KEY: ${EXO_API_KEY}
+      EXO_PROJECT: ${EXO_PROJECT}
+      # MCP Server settings
+      MCP_SERVER_PORT: 8080
+      # Security settings
+      LEXTRI_WRITE_OK: ${LEXTRI_WRITE_OK:-false}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./config:/app/config
+    ports:
+      - "8080:8080"  # MCP server
+      - "8000:8000"  # FastAPI
+    networks:
+      - lextri_network
+    restart: unless-stopped
+    command: ["python", "temporal_server.py"]
+
+  # AGI Hive Swarm Coordinator
+  hive_coordinator:
+    build:
+      context: .
+      dockerfile: Dockerfile.hive
+    container_name: lextri_hive_coordinator
+    depends_on:
+      - postgres
+      - lextri_agent
+    environment:
+      DATABASE_URL: postgresql://lextri_user:${POSTGRES_PASSWORD:-lextri_secure_password}@postgres:5432/lextri_temporal
+      LEXTRI_AGENT_URL: http://lextri_agent:8080
+      # Hive swarm settings
+      HIVE_SWARM_SIZE: ${HIVE_SWARM_SIZE:-3}
+      HIVE_COORDINATOR_PORT: 9000
+      # AI model settings
+      PRIMARY_MODEL: ${PRIMARY_MODEL:-gpt-4}
+      BACKUP_MODEL: ${BACKUP_MODEL:-claude-3-sonnet}
+    volumes:
+      - ./hive_data:/app/hive_data
+      - ./logs:/app/logs
+    ports:
+      - "9000:9000"  # Hive coordinator
+    networks:
+      - lextri_network
+    restart: unless-stopped
+
+  # Redis for caching and message queuing
+  redis:
+    image: redis:7-alpine
+    container_name: lextri_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - lextri_network
+    restart: unless-stopped
+
+  # Grafana for temporal visualization dashboard
+  grafana:
+    image: grafana/grafana:latest
+    container_name: lextri_grafana
+    depends_on:
+      - postgres
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_INSTALL_PLUGINS: grafana-clock-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    ports:
+      - "3000:3000"
+    networks:
+      - lextri_network
+    restart: unless-stopped
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: lextri_prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - lextri_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  vector_data:
+    driver: local
+  redis_data:
+    driver: local
+  grafana_data:
+    driver: local
+  prometheus_data:
+    driver: local
+
+networks:
+  lextri_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
