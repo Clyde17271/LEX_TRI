@@ -1,0 +1,128 @@
+{
+  "mcpServers": {
+    "lextri-temporal-agent": {
+      "command": "python",
+      "args": ["mcp_server.py"],
+      "env": {},
+      "description": "LEX TRI Temporal Agent MCP Server - provides temporal analysis, anomaly detection, and visualization tools"
+    }
+  },
+  "server_info": {
+    "name": "lextri-temporal-agent",
+    "version": "1.0.0",
+    "description": "Model Context Protocol server for LEX TRI temporal agent capabilities",
+    "capabilities": {
+      "tools": [
+        "generate_example_timeline",
+        "analyze_timeline_anomalies",
+        "visualize_timeline",
+        "publish_to_exo"
+      ],
+      "resources": [
+        "timeline_files"
+      ],
+      "prompts": [
+        "analyze_temporal_anomalies",
+        "explain_temporal_analysis",
+        "temporal_debugging_guide"
+      ]
+    }
+  },
+  "installation": {
+    "requirements": [
+      "mcp>=1.1.0",
+      "fastapi>=0.118.0",
+      "pydantic>=2.11.9",
+      "rich>=14.1.0",
+      "matplotlib>=3.8.4"
+    ],
+    "optional_dependencies": {
+      "exo_integration": [
+        "exo-platform-client>=0.5.0"
+      ],
+      "temporal_viz": [
+        "matplotlib>=3.8.4"
+      ]
+    }
+  },
+  "usage_examples": {
+    "claude_desktop_config": {
+      "location": "~/Library/Application Support/Claude/claude_desktop_config.json",
+      "config": {
+        "mcpServers": {
+          "lextri-temporal-agent": {
+            "command": "python",
+            "args": ["/path/to/lextri/mcp_server.py"],
+            "env": {}
+          }
+        }
+      }
+    },
+    "command_line": {
+      "start_server": "python mcp_server.py",
+      "test_client": "python mcp_client.py"
+    }
+  },
+  "documentation": {
+    "tools": {
+      "generate_example_timeline": {
+        "description": "Generate synthetic temporal timeline data for testing and demonstration",
+        "parameters": {
+          "name": "Timeline name (optional, default: 'Example Timeline')",
+          "num_points": "Number of temporal points to generate (optional, default: 50)"
+        },
+        "returns": "JSON timeline data with temporal points"
+      },
+      "analyze_timeline_anomalies": {
+        "description": "Analyze temporal timeline for anomalies and irregular patterns",
+        "parameters": {
+          "timeline_json": "JSON string containing timeline data (mutually exclusive with file_path)",
+          "file_path": "Path to JSON file containing timeline data (mutually exclusive with timeline_json)"
+        },
+        "returns": "List of detected anomalies with descriptions and severity levels"
+      },
+      "visualize_timeline": {
+        "description": "Create visual representation of temporal timeline data",
+        "parameters": {
+          "timeline_json": "JSON string containing timeline data (mutually exclusive with file_path)",
+          "file_path": "Path to JSON file containing timeline data (mutually exclusive with timeline_json)",
+          "output_path": "Path where visualization image should be saved",
+          "highlight_anomalies": "Whether to highlight detected anomalies (optional, default: true)"
+        },
+        "returns": "Confirmation of visualization creation with output path"
+      },
+      "publish_to_exo": {
+        "description": "Publish temporal timeline data to Exo platform for enhanced observability",
+        "parameters": {
+          "timeline_json": "JSON string containing timeline data (mutually exclusive with file_path)",
+          "file_path": "Path to JSON file containing timeline data (mutually exclusive with timeline_json)",
+          "api_key": "Exo platform API key",
+          "project": "Exo project ID or name",
+          "timeline_name": "Name for timeline in Exo (optional, default: 'LEX TRI Temporal Analysis')",
+          "publish_anomalies": "Whether to publish anomalies to Exo event stream (optional, default: true)"
+        },
+        "returns": "Confirmation of publication with Exo timeline ID and dashboard URL"
+      }
+    },
+    "prompts": {
+      "analyze_temporal_anomalies": {
+        "description": "Get AI assistance for analyzing temporal data anomalies",
+        "arguments": {
+          "timeline_data": "Timeline data in JSON format to analyze"
+        }
+      },
+      "explain_temporal_analysis": {
+        "description": "Get explanations of temporal analysis results",
+        "arguments": {
+          "analysis_results": "Analysis results to explain"
+        }
+      },
+      "temporal_debugging_guide": {
+        "description": "Get guidance for temporal debugging scenarios",
+        "arguments": {
+          "scenario": "Description of temporal debugging scenario"
+        }
+      }
+    }
+  }
+}
