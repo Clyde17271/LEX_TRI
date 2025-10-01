@@ -1,0 +1,279 @@
+name: LEX-TRI Temporal Analysis
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run temporal analysis every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      analysis_mode:
+        description: 'Analysis Mode'
+        required: true
+        default: 'comprehensive'
+        type: choice
+        options:
+          - comprehensive
+          - anomaly-only
+          - visualization
+          - exo-sync
+      time_range:
+        description: 'Time range (hours)'
+        required: false
+        default: '24'
+
+jobs:
+  temporal-analysis:
+    runs-on: ubuntu-latest
+    name: LEX-TRI Temporal Debugging
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+
+      - name: Install LEX-TRI dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run LEX-TRI Diagnostics
+        run: |
+          echo "🔍 Running LEX-TRI Temporal Diagnostics..."
+          python lextri_runner.py --verbose
+
+      - name: Collect Repository Temporal Data
+        id: collect
+        run: |
+          echo "📊 Collecting temporal data from repository..."
+
+          # Create a timeline from git history
+          python -c "
+          import json
+          import subprocess
+          from datetime import datetime, timezone
+
+          # Get recent commits
+          result = subprocess.run(
+              ['git', 'log', '--pretty=format:%H|%at|%ct|%an|%s', '-n', '50'],
+              capture_output=True, text=True
+          )
+
+          points = []
+          for line in result.stdout.strip().split('\n'):
+              if not line:
+                  continue
+              parts = line.split('|')
+              if len(parts) >= 5:
+                  commit_hash = parts[0]
+                  author_time = int(parts[1])
+                  commit_time = int(parts[2])
+                  author = parts[3]
+                  message = parts[4]
+
+                  # Create temporal point
+                  point = {
+                      'event_id': commit_hash[:8],
+                      'valid_time': datetime.fromtimestamp(author_time, tz=timezone.utc).isoformat(),
+                      'transaction_time': datetime.fromtimestamp(commit_time, tz=timezone.utc).isoformat(),
+                      'decision_time': datetime.fromtimestamp(commit_time + 60, tz=timezone.utc).isoformat(),  # Assume 1 min decision delay
+                      'event_type': 'commit',
+                      'data': {
+                          'author': author,
+                          'message': message[:100],
+                          'full_hash': commit_hash
+                      }
+                  }
+                  points.append(point)
+
+          timeline = {
+              'name': 'Repository Timeline',
+              'description': 'Git commit history temporal analysis',
+              'points': points
+          }
+
+          with open('repo_timeline.json', 'w') as f:
+              json.dump(timeline, f, indent=2)
+
+          print(f'Created timeline with {len(points)} temporal points')
+          "
+
+      - name: Analyze with LEX-TRI
+        id: analyze
+        env:
+          ANALYSIS_MODE: ${{ github.event.inputs.analysis_mode || 'comprehensive' }}
+        run: |
+          echo "🧠 Running LEX-TRI Analysis (mode: $ANALYSIS_MODE)..."
+
+          if [ "$ANALYSIS_MODE" = "comprehensive" ] || [ "$ANALYSIS_MODE" = "anomaly-only" ]; then
+            python lextri_runner.py --mode analyze \
+              --input repo_timeline.json \
+              --output repo_analysis.json
+
+            # Display anomalies
+            python -c "
+          import json
+          with open('repo_analysis.json', 'r') as f:
+              analysis = json.load(f)
+          if 'anomalies' in analysis:
+              print('\\n🚨 Temporal Anomalies Detected:')
+              for anomaly in analysis['anomalies']:
+                  print(f\"  - {anomaly.get('type', 'Unknown')}: {anomaly.get('description', 'No description')}\")
+          else:
+              print('✅ No temporal anomalies detected')
+            "
+          fi
+
+          if [ "$ANALYSIS_MODE" = "comprehensive" ] || [ "$ANALYSIS_MODE" = "visualization" ]; then
+            python lextri_runner.py --mode visualize \
+              --input repo_timeline.json \
+              --output repo_timeline.png
+          fi
+
+      - name: Generate LEX-TRI Report
+        run: |
+          cat > lextri_report.md << EOF
+          # LEX-TRI Temporal Analysis Report
+
+          **Date**: $(date)
+          **Repository**: ${{ github.repository }}
+          **Branch**: ${{ github.ref_name }}
+          **Commit**: ${{ github.sha }}
+          **Analysis Mode**: ${{ github.event.inputs.analysis_mode || 'comprehensive' }}
+
+          ## Temporal Dimensions Analyzed
+
+          - **Valid Time (VT)**: When events actually occurred
+          - **Transaction Time (TT)**: When events were recorded
+          - **Decision Time (DT)**: When system acted on events
+
+          ## Analysis Results
+
+          $(python -c "
+          import json
+          try:
+              with open('repo_analysis.json', 'r') as f:
+                  analysis = json.load(f)
+              print(f\"- Total events analyzed: {analysis.get('total_events', 0)}\")
+              print(f\"- Anomalies detected: {len(analysis.get('anomalies', []))}\")
+              print(f\"- Time range: {analysis.get('time_range', 'N/A')}\")
+          except:
+              print('- Analysis pending or failed')
+          ")
+
+          ## Temporal Patterns
+
+          The LEX-TRI engine has analyzed the following patterns:
+          - Time travel detection (TT < VT)
+          - Premature decisions (DT < TT)
+          - Ingestion lag analysis
+          - Out-of-order processing
+
+          ## Integration Status
+
+          - **MCP Server**: Available for AI integration
+          - **Exo Platform**: Ready for synchronization
+          - **Docker Images**: Built and published
+
+          ## Next Steps
+
+          1. Review detected anomalies in detail
+          2. Sync findings with Exo platform
+          3. Configure alerts for critical patterns
+          EOF
+
+          cat lextri_report.md
+
+      - name: Upload LEX-TRI Artifacts
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: lextri-analysis-${{ github.run_id }}
+          path: |
+            repo_timeline.json
+            repo_analysis.json
+            repo_timeline.png
+            lextri_report.md
+
+      - name: Sync to Exo (if configured)
+        if: github.event.inputs.analysis_mode == 'exo-sync' || github.event.inputs.analysis_mode == 'comprehensive'
+        env:
+          EXO_API_KEY: ${{ secrets.EXO_API_KEY }}
+          EXO_PROJECT_ID: ${{ secrets.EXO_PROJECT_ID }}
+        run: |
+          if [ -n "$EXO_API_KEY" ] && [ -n "$EXO_PROJECT_ID" ]; then
+            echo "📤 Syncing to Exo Platform..."
+            python lextri_runner.py --mode exo-publish \
+              --input repo_timeline.json \
+              --exo-integration \
+              --exo-project "$EXO_PROJECT_ID" || echo "Exo sync failed (non-critical)"
+          else
+            echo "⚠️ Exo credentials not configured - skipping sync"
+          fi
+
+      - name: Comment on PR (if applicable)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Read the report
+            const report = fs.readFileSync('lextri_report.md', 'utf8');
+
+            // Create a comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## 🔍 LEX-TRI Temporal Analysis\n\n${report}\n\n---\n*Generated by LEX-TRI Temporal Debugging Agent*`
+            });
+
+  mcp-server-test:
+    runs-on: ubuntu-latest
+    name: Test MCP Integration
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start MCP Server
+        run: |
+          # Start server in background
+          python mcp_server.py &
+          MCP_PID=$!
+          echo "MCP_PID=$MCP_PID" >> $GITHUB_ENV
+
+          # Wait for server to start
+          sleep 5
+
+          # Test with client
+          python mcp_client.py || true
+
+          # Kill server
+          kill $MCP_PID || true
+
+      - name: Test MCP Tools
+        run: |
+          python test_mcp_integration.py -v

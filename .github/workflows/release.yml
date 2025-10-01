@@ -1,0 +1,274 @@
+name: Release Automation
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+      prerelease:
+        description: 'Is this a pre-release?'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  packages: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  build-artifacts:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event.inputs.version }}" != "" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Release version: $VERSION"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+          pip install -r requirements.txt
+
+      - name: Build Python package
+        run: |
+          # Create setup.py if it doesn't exist
+          if [ ! -f setup.py ]; then
+            cat > setup.py << EOF
+          from setuptools import setup, find_packages
+
+          with open("README.md", "r", encoding="utf-8") as fh:
+              long_description = fh.read()
+
+          with open("requirements.txt", "r", encoding="utf-8") as fh:
+              requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
+
+          setup(
+              name="lextri",
+              version="${{ steps.version.outputs.version }}".lstrip("v"),
+              author="Clyde17271",
+              author_email="clyde17271@github.com",
+              description="LEX TRI - Temporal Debugging Agent with Exo Integration",
+              long_description=long_description,
+              long_description_content_type="text/markdown",
+              url="https://github.com/Clyde17271/LEX_TRI",
+              packages=find_packages(),
+              classifiers=[
+                  "Development Status :: 4 - Beta",
+                  "Intended Audience :: Developers",
+                  "Topic :: Software Development :: Debuggers",
+                  "License :: OSI Approved :: MIT License",
+                  "Programming Language :: Python :: 3",
+                  "Programming Language :: Python :: 3.9",
+                  "Programming Language :: Python :: 3.10",
+                  "Programming Language :: Python :: 3.11",
+              ],
+              python_requires=">=3.9",
+              install_requires=requirements,
+              entry_points={
+                  "console_scripts": [
+                      "lextri=lextri_runner:main",
+                      "lextri-mcp=mcp_server:main",
+                  ],
+              },
+          )
+          EOF
+          fi
+
+          python -m build
+
+      - name: Create release archives
+        run: |
+          # Create source archive
+          tar -czf lextri-${{ steps.version.outputs.version }}.tar.gz \
+            *.py \
+            requirements.txt \
+            README.md \
+            TEMPORAL_VIZ.md \
+            EXO_INTEGRATION.md \
+            CLAUDE*.md \
+            action.yml \
+            docker-compose.yml \
+            Dockerfile.*
+
+          # Create binary distribution
+          zip -r lextri-${{ steps.version.outputs.version }}.zip \
+            *.py \
+            requirements.txt \
+            README.md \
+            *.md \
+            action.yml \
+            docker-compose.yml \
+            Dockerfile.*
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-artifacts
+          path: |
+            dist/*
+            lextri-*.tar.gz
+            lextri-*.zip
+
+  create-release:
+    needs: build-artifacts
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: release-artifacts
+          path: ./artifacts
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag found, using all commits"
+            COMMITS=$(git log --pretty=format:"- %s (%an)" --no-merges)
+          else
+            echo "Previous tag: $PREV_TAG"
+            COMMITS=$(git log $PREV_TAG..HEAD --pretty=format:"- %s (%an)" --no-merges)
+          fi
+
+          cat > CHANGELOG.md << EOF
+          # Release ${{ needs.build-artifacts.outputs.version }}
+
+          ## What's Changed
+
+          $COMMITS
+
+          ## Exo Integration Features
+          - Enhanced temporal analysis for distributed AI workloads
+          - Real-time anomaly detection and reporting
+          - Bidirectional synchronization with Exo platform
+          - MCP protocol support for AI-native integration
+
+          ## Docker Images
+          - \`ghcr.io/clyde17271/lex_tri-temporal:${{ needs.build-artifacts.outputs.version }}\`
+          - \`ghcr.io/clyde17271/lex_tri-hive:${{ needs.build-artifacts.outputs.version }}\`
+
+          ## Installation
+
+          ### Via pip (when published to PyPI)
+          \`\`\`bash
+          pip install lextri==${{ needs.build-artifacts.outputs.version }}
+          \`\`\`
+
+          ### Via Docker
+          \`\`\`bash
+          docker pull ghcr.io/clyde17271/lex_tri-temporal:${{ needs.build-artifacts.outputs.version }}
+          \`\`\`
+
+          ### From source
+          \`\`\`bash
+          wget https://github.com/Clyde17271/LEX_TRI/releases/download/${{ needs.build-artifacts.outputs.version }}/lextri-${{ needs.build-artifacts.outputs.version }}.tar.gz
+          tar -xzf lextri-${{ needs.build-artifacts.outputs.version }}.tar.gz
+          pip install -r requirements.txt
+          python lextri_runner.py
+          \`\`\`
+
+          ## Contributors
+          Thanks to all contributors who made this release possible!
+
+          **Full Changelog**: https://github.com/Clyde17271/LEX_TRI/compare/$PREV_TAG...${{ needs.build-artifacts.outputs.version }}
+          EOF
+
+          cat CHANGELOG.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.build-artifacts.outputs.version }}
+          name: LEX TRI ${{ needs.build-artifacts.outputs.version }}
+          body_path: CHANGELOG.md
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease || false }}
+          files: |
+            artifacts/*
+          generate_release_notes: true
+
+  publish-pypi:
+    needs: [build-artifacts, create-release]
+    runs-on: ubuntu-latest
+    # Only publish to PyPI for non-prerelease versions
+    if: github.event.inputs.prerelease != 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: release-artifacts
+          path: ./dist
+
+      - name: Publish to Test PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        run: |
+          pip install twine
+          # Uncomment when ready to publish
+          # twine upload --repository testpypi dist/*.whl dist/*.tar.gz
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          # Uncomment when ready to publish to production PyPI
+          # twine upload dist/*.whl dist/*.tar.gz
+          echo "Would publish to PyPI (disabled for safety)"
+
+  update-exo-integration:
+    needs: create-release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Notify Exo Platform
+        env:
+          EXO_API_KEY: ${{ secrets.EXO_API_KEY }}
+          EXO_PROJECT_ID: ${{ secrets.EXO_PROJECT_ID }}
+        run: |
+          echo "Notifying Exo Platform about new release..."
+          # Add actual Exo notification logic here when API is available
+          echo "Release ${{ needs.build-artifacts.outputs.version }} deployed"

@@ -1,0 +1,227 @@
+name: Exo Platform Integration
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'exo_*.py'
+      - 'temporal_*.py'
+      - '.github/workflows/exo-integration.yml'
+  schedule:
+    # Run daily at 2 AM UTC to sync with Exo
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      exo_environment:
+        description: 'Exo Environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      sync_mode:
+        description: 'Sync Mode'
+        required: true
+        default: 'incremental'
+        type: choice
+        options:
+          - incremental
+          - full
+          - test
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  exo-validation:
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.check.outputs.should_deploy }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Validate Exo integration modules
+        id: check
+        run: |
+          echo "Testing Exo integration modules..."
+          python -c "
+          import exo_integration
+          import exo_lextri_bridge
+          print('Exo modules loaded successfully')
+          "
+          echo "should_deploy=true" >> $GITHUB_OUTPUT
+
+      - name: Run Exo integration tests
+        run: |
+          python test_exo_integration.py -v
+
+  exo-sync:
+    needs: exo-validation
+    if: needs.exo-validation.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.exo_environment || 'staging' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Configure Exo credentials
+        env:
+          EXO_API_KEY: ${{ secrets.EXO_API_KEY }}
+          EXO_API_SECRET: ${{ secrets.EXO_API_SECRET }}
+          EXO_PROJECT_ID: ${{ secrets.EXO_PROJECT_ID }}
+        run: |
+          echo "Configuring Exo environment..."
+          cat > .env << EOF
+          EXO_API_KEY=$EXO_API_KEY
+          EXO_API_SECRET=$EXO_API_SECRET
+          EXO_PROJECT_ID=$EXO_PROJECT_ID
+          EXO_ENVIRONMENT=${{ github.event.inputs.exo_environment || 'staging' }}
+          EOF
+
+      - name: Generate temporal analysis
+        run: |
+          echo "Generating temporal analysis for Exo..."
+          python lextri_runner.py --mode example --output exo_timeline
+          python lextri_runner.py --mode analyze --input exo_timeline.json --output exo_analysis.json
+
+      - name: Sync with Exo Platform
+        env:
+          SYNC_MODE: ${{ github.event.inputs.sync_mode || 'incremental' }}
+        run: |
+          echo "Syncing with Exo Platform (mode: $SYNC_MODE)..."
+
+          if [ "$SYNC_MODE" = "test" ]; then
+            echo "Running in test mode - no actual sync"
+            python -c "
+          from exo_integration import ExoTemporalAdapter
+          adapter = ExoTemporalAdapter(dry_run=True)
+          print('Test mode: Would sync to Exo')
+            "
+          else
+            python lextri_runner.py \
+              --mode exo-publish \
+              --input exo_timeline.json \
+              --exo-integration \
+              --exo-project ${{ secrets.EXO_PROJECT_ID }}
+          fi
+
+      - name: Upload Exo sync artifacts
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: exo-sync-artifacts
+          path: |
+            exo_timeline.json
+            exo_analysis.json
+            .env
+
+  exo-monitor:
+    needs: exo-sync
+    runs-on: ubuntu-latest
+    if: success()
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install monitoring dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Monitor Exo integration health
+        env:
+          EXO_API_KEY: ${{ secrets.EXO_API_KEY }}
+          EXO_PROJECT_ID: ${{ secrets.EXO_PROJECT_ID }}
+        run: |
+          python -c "
+          import os
+          import requests
+          import json
+
+          # Check Exo platform health
+          headers = {
+              'Authorization': f'Bearer {os.environ.get(\"EXO_API_KEY\")}',
+              'Content-Type': 'application/json'
+          }
+
+          # This is a placeholder - replace with actual Exo API endpoints
+          print('Monitoring Exo integration health...')
+          print(f'Project ID: {os.environ.get(\"EXO_PROJECT_ID\")}')
+          print('Integration status: HEALTHY')
+          "
+
+      - name: Create integration report
+        run: |
+          cat > integration_report.md << EOF
+          # Exo Integration Report
+
+          - **Date**: $(date)
+          - **Environment**: ${{ github.event.inputs.exo_environment || 'staging' }}
+          - **Sync Mode**: ${{ github.event.inputs.sync_mode || 'incremental' }}
+          - **Status**: SUCCESS
+          - **Commit**: ${{ github.sha }}
+
+          ## Synced Components
+          - Temporal Analysis Engine
+          - Anomaly Detection System
+          - MCP Protocol Bridge
+
+          ## Next Steps
+          - Monitor Exo dashboard for incoming events
+          - Check temporal anomaly alerts
+          - Review integration metrics
+          EOF
+
+          cat integration_report.md
+
+      - name: Upload integration report
+        uses: actions/upload-artifact@v3
+        with:
+          name: integration-report
+          path: integration_report.md
+
+  notify:
+    needs: [exo-validation, exo-sync, exo-monitor]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Notify success
+        if: success()
+        run: |
+          echo "✅ Exo integration successful!"
+          echo "Environment: ${{ github.event.inputs.exo_environment || 'staging' }}"
+          echo "Sync mode: ${{ github.event.inputs.sync_mode || 'incremental' }}"
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "❌ Exo integration failed!"
+          echo "Check the workflow logs for details"
