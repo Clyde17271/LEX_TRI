@@ -256,6 +256,8 @@ tt_traces/
 dt_traces/
 
 # Security and secrets
+.env
+.env.*
 .env.local
 .env.production
 .env.development
@@ -264,6 +266,18 @@ api_keys.txt
 *.pem
 *.key
 *.crt
+*api_key*.json
+*api-key*.json
+*apikey*.json
+FrontEllipticHive2_api_key.json
+*-api-keys.sh
+*-setup-keys.sh
+*-claude-key.sh
+extract-api-keys.sh
+setup-api-keys.sh
+fixed-setup-api-keys.sh
+secure-setup-keys.sh
+secure-claude-key.sh
 
 # Temporary files
 *.tmp

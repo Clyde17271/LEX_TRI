@@ -4,6 +4,23 @@ pydantic==2.11.9
 pytest==8.4.2
 requests==2.32.5
 rich==14.1.0
+matplotlib==3.8.4
+# MCP dependencies
+mcp==1.1.0
+# PostgreSQL and database dependencies
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.35
+alembic==1.14.0
+asyncpg==0.30.0
+# AGI and AI dependencies
+openai==1.58.1
+anthropic==0.40.0
+langchain==0.3.9
+# Vector database for embeddings
+pgvector==0.3.6
+numpy==1.26.4
+# Optional dependencies for Exo integration
+exo-platform-client==0.5.0  # Placeholder for actual Exo client package
 # Security-pinned dependencies
 starlette==0.48.0
 typing-extensions==4.15.0
