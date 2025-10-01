@@ -1,0 +1,92 @@
+{
+  "timestamp": "2025-10-01T16:01:43.971411",
+  "timeline_name": "Distributed System Event Flow",
+  "total_events": 7,
+  "anomaly_count": 4,
+  "anomalies": [
+    {
+      "type": "time_travel",
+      "description": "Transaction time precedes valid time for event net_001",
+      "severity": "critical",
+      "point": {
+        "event_id": "net_001",
+        "valid_time": "2025-10-01T16:01:47.359318",
+        "transaction_time": "2025-10-01T16:01:46.359318",
+        "decision_time": "2025-10-01T16:01:48.359318",
+        "data": {
+          "type": "network_event",
+          "status": "partition_detected",
+          "severity": "high"
+        }
+      }
+    },
+    {
+      "type": "premature_decision",
+      "description": "Decision made before transaction recorded for event pay_001",
+      "severity": "high",
+      "point": {
+        "event_id": "pay_001",
+        "valid_time": "2025-10-01T16:01:52.359318",
+        "transaction_time": "2025-10-01T16:01:52.859318",
+        "decision_time": "2025-10-01T16:01:52.559318",
+        "data": {
+          "type": "payment",
+          "amount": 150.0,
+          "status": "processed_early",
+          "risk": "high"
+        }
+      }
+    },
+    {
+      "type": "time_travel",
+      "description": "Transaction time precedes valid time for event msg_002",
+      "severity": "critical",
+      "point": {
+        "event_id": "msg_002",
+        "valid_time": "2025-10-01T16:02:09.359318",
+        "transaction_time": "2025-10-01T16:02:08.359318",
+        "decision_time": "2025-10-01T16:02:09.359318",
+        "data": {
+          "type": "message",
+          "queue": "orders",
+          "seq": 2
+        }
+      }
+    },
+    {
+      "type": "out_of_order",
+      "description": "Events processed out of order: msg_001 and msg_002",
+      "severity": "high",
+      "points": [
+        {
+          "event_id": "msg_001",
+          "valid_time": "2025-10-01T16:02:07.359318",
+          "transaction_time": "2025-10-01T16:02:10.359318",
+          "decision_time": "2025-10-01T16:02:11.359318",
+          "data": {
+            "type": "message",
+            "queue": "orders",
+            "seq": 1
+          }
+        },
+        {
+          "event_id": "msg_002",
+          "valid_time": "2025-10-01T16:02:09.359318",
+          "transaction_time": "2025-10-01T16:02:08.359318",
+          "decision_time": "2025-10-01T16:02:09.359318",
+          "data": {
+            "type": "message",
+            "queue": "orders",
+            "seq": 2
+          }
+        }
+      ]
+    }
+  ],
+  "severity_distribution": {
+    "critical": 2,
+    "high": 2,
+    "medium": 0,
+    "low": 0
+  }
+}

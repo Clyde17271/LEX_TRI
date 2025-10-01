@@ -1,0 +1,67 @@
+{
+  "timeline_name": "Example Timeline",
+  "anomaly_count": 4,
+  "anomalies": [
+    {
+      "type": "time_travel",
+      "description": "Transaction time precedes valid time for event evt_anomaly_1",
+      "severity": "critical",
+      "point": {
+        "event_id": "evt_anomaly_1",
+        "valid_time": "2025-10-01T16:58:49.406769",
+        "transaction_time": "2025-10-01T16:53:49.406769",
+        "decision_time": "2025-10-01T17:03:49.406769",
+        "data": {
+          "status": "anomaly",
+          "type": "time_travel"
+        }
+      }
+    },
+    {
+      "type": "premature_decision",
+      "description": "Decision made before transaction recorded for event evt_anomaly_2",
+      "severity": "high",
+      "point": {
+        "event_id": "evt_anomaly_2",
+        "valid_time": "2025-10-01T17:08:49.406769",
+        "transaction_time": "2025-10-01T17:18:49.406769",
+        "decision_time": "2025-10-01T17:13:49.406769",
+        "data": {
+          "status": "anomaly",
+          "type": "premature_decision"
+        }
+      }
+    },
+    {
+      "type": "ingestion_lag",
+      "description": "Lag of 600.00 seconds between valid and transaction time",
+      "severity": "high",
+      "point": {
+        "event_id": "evt_anomaly_2",
+        "valid_time": "2025-10-01T17:08:49.406769",
+        "transaction_time": "2025-10-01T17:18:49.406769",
+        "decision_time": "2025-10-01T17:13:49.406769",
+        "data": {
+          "status": "anomaly",
+          "type": "premature_decision"
+        }
+      }
+    },
+    {
+      "type": "ingestion_lag",
+      "description": "Lag of 330.00 seconds between valid and transaction time",
+      "severity": "high",
+      "point": {
+        "event_id": "evt_anomaly_3",
+        "valid_time": "2025-10-01T17:28:49.406769",
+        "transaction_time": "2025-10-01T17:34:19.406769",
+        "decision_time": "2025-10-01T17:34:49.406769",
+        "data": {
+          "status": "anomaly",
+          "type": "large_lag"
+        }
+      }
+    }
+  ],
+  "analysis_timestamp": "2025-10-01T15:58:57.788873"
+}

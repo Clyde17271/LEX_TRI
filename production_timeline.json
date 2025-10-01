@@ -1,0 +1,87 @@
+{
+  "name": "Distributed System Event Flow",
+  "points": [
+    {
+      "event_id": "db_001",
+      "valid_time": "2025-10-01T16:01:42.359318",
+      "transaction_time": "2025-10-01T16:01:42.409318",
+      "decision_time": "2025-10-01T16:01:42.459318",
+      "data": {
+        "type": "db_write",
+        "table": "users",
+        "status": "success"
+      }
+    },
+    {
+      "event_id": "cache_001",
+      "valid_time": "2025-10-01T16:01:43.359318",
+      "transaction_time": "2025-10-01T16:01:43.379318",
+      "decision_time": "2025-10-01T16:01:43.409318",
+      "data": {
+        "type": "cache_invalidate",
+        "key": "user:123",
+        "status": "success"
+      }
+    },
+    {
+      "event_id": "net_001",
+      "valid_time": "2025-10-01T16:01:47.359318",
+      "transaction_time": "2025-10-01T16:01:46.359318",
+      "decision_time": "2025-10-01T16:01:48.359318",
+      "data": {
+        "type": "network_event",
+        "status": "partition_detected",
+        "severity": "high"
+      }
+    },
+    {
+      "event_id": "pay_001",
+      "valid_time": "2025-10-01T16:01:52.359318",
+      "transaction_time": "2025-10-01T16:01:52.859318",
+      "decision_time": "2025-10-01T16:01:52.559318",
+      "data": {
+        "type": "payment",
+        "amount": 150.0,
+        "status": "processed_early",
+        "risk": "high"
+      }
+    },
+    {
+      "event_id": "api_001",
+      "valid_time": "2025-10-01T16:01:57.359318",
+      "transaction_time": "2025-10-01T16:02:02.359318",
+      "decision_time": "2025-10-01T16:02:03.359318",
+      "data": {
+        "type": "api_webhook",
+        "source": "external_partner",
+        "status": "delayed"
+      }
+    },
+    {
+      "event_id": "msg_001",
+      "valid_time": "2025-10-01T16:02:07.359318",
+      "transaction_time": "2025-10-01T16:02:10.359318",
+      "decision_time": "2025-10-01T16:02:11.359318",
+      "data": {
+        "type": "message",
+        "queue": "orders",
+        "seq": 1
+      }
+    },
+    {
+      "event_id": "msg_002",
+      "valid_time": "2025-10-01T16:02:09.359318",
+      "transaction_time": "2025-10-01T16:02:08.359318",
+      "decision_time": "2025-10-01T16:02:09.359318",
+      "data": {
+        "type": "message",
+        "queue": "orders",
+        "seq": 2
+      }
+    }
+  ],
+  "metadata": {
+    "created": "2025-10-01T16:01:42.368527",
+    "point_count": 7
+  }
+}
