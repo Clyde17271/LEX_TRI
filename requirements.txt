@@ -20,12 +20,12 @@ langchain==0.3.9
 pgvector==0.3.6
 numpy==1.26.4
 # Optional dependencies for Exo integration
-exo-platform-client==0.5.0  # Placeholder for actual Exo client package
+# exo-platform-client==0.5.0  # Uncomment when Exo client package is available
 # Security-pinned dependencies
 starlette==0.48.0
 typing-extensions==4.15.0
 anyio==4.11.0
-certifi==2025.8.3
+certifi==2024.8.30
 charset-normalizer==3.4.3
 idna==3.10
 urllib3==2.5.0
