@@ -128,7 +128,7 @@ jobs:
           fi
 
       - name: Upload Exo sync artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: exo-sync-artifacts
@@ -202,7 +202,7 @@ jobs:
           cat integration_report.md
 
       - name: Upload integration report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: integration-report
           path: integration_report.md
