@@ -576,8 +576,6 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown."""
-    global db, hive
-
     console.print("[yellow]🛑 Shutting down LEX TRI Temporal AGI Server[/yellow]")
 
     try:

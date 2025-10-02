@@ -738,8 +738,6 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup all services on shutdown."""
-    global db, hive, crypto_bridge
-
     console.print("[yellow]🛑 Shutting down Unified Temporal Crypto-AGI Server[/yellow]")
 
     try:

@@ -632,7 +632,8 @@ class LEXTRIMCPServer:
                 write_stream,
                 InitializationOptions(
                     server_name="lextri-temporal-agent",
-                    server_version="1.0.0"
+                    server_version="1.0.0",
+                    capabilities={}
                 )
             )
 
