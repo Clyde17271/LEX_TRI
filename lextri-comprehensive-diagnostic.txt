@@ -1,0 +1,53 @@
+LEX TRI Comprehensive Diagnostic Report
+=======================================
+Generated: Fri Oct  3 02:48:02 UTC 2025
+Script version: troubleshoot-lextri.sh
+
+=== SYSTEM INFORMATION ===
+OS: linux-gnu
+Shell: /bin/bash
+User: runner
+Working Directory: /home/runner/work/LEX_TRI/LEX_TRI
+
+=== NODE.JS ENVIRONMENT ===
+Node.js Version: v20.19.5
+Node.js Path: /usr/local/bin/node
+npm Version: 10.8.2
+npm Path: /usr/local/bin/npm
+npm Prefix: /usr/local
+
+=== CHATGPT CLI ===
+ChatGPT CLI: NOT FOUND
+
+=== API CONFIGURATION ===
+OPENAI_API_KEY: 
+ANTHROPIC_API_KEY: 
+
+=== NETWORK CONFIGURATION ===
+Default Gateway: Unknown
+DNS Servers: 127.0.0.53 
+HTTP_PROXY: Not set
+HTTPS_PROXY: Not set
+
+=== CONNECTIVITY TESTS ===
+api.openai.com: FAILED (may cause 503 errors)
+api.anthropic.com: FAILED (may cause 503 errors)
+registry.npmjs.org: ACCESSIBLE
+github.com: ACCESSIBLE
+
+=== PATH ANALYSIS ===
+Current PATH: /snap/bin:/home/runner/.local/bin:/opt/pipx_bin:/home/runner/.cargo/bin:/home/runner/.config/composer/vendor/bin:/usr/local/.ghcup/bin:/home/runner/.dotnet/tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+
+Node.js search paths:
+  ✓ /usr/local/bin/node (found)
+
+=== LEX TRI FILES ===
+Available troubleshooting scripts:
+  ✓ fix-node-spawn-error.sh (executable: yes)
+  ✓ fix-connection-errors.sh (executable: yes)
+  ✓ fix-codex.sh (executable: yes)
+
+=== RECOMMENDATIONS ===
+- Install ChatGPT CLI: npm install -g chatgpt-cli
+- Set OPENAI_API_KEY environment variable
+- Check network connectivity to fix 503 errors
