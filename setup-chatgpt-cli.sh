@@ -32,12 +32,37 @@ log_error() {
 check_chatgpt_cli() {
     log_info "Checking ChatGPT CLI installation..."
     
+    # First check if Node.js is available
+    if ! command -v node &> /dev/null; then
+        log_error "Node.js not found! This causes 'spawn node ENOENT' errors."
+        log_info "Please install Node.js first from https://nodejs.org/"
+        log_info "Or run: brew install node (on macOS)"
+        return 1
+    fi
+    
     if ! command -v chatgpt &> /dev/null; then
-        log_error "ChatGPT CLI not found. Installing..."
-        npm install -g chatgpt
+        log_warning "ChatGPT CLI not found. Installing..."
+        
+        log_info "Attempting global installation..."
+        if npm install -g chatgpt-cli 2>/dev/null; then
+            log_success "ChatGPT CLI installed globally"
+        else
+            log_warning "Global installation failed. Trying local installation..."
+            if npm install chatgpt-cli 2>/dev/null; then
+                log_success "ChatGPT CLI installed locally"
+                export PATH="$PWD/node_modules/.bin:$PATH"
+                log_info "Added local node_modules to PATH for current session"
+            else
+                log_error "ChatGPT CLI installation failed"
+                log_info "You can try: sudo npm install -g chatgpt-cli"
+                log_info "Or check Node.js installation with: ./fix-node-spawn-error.sh"
+                return 1
+            fi
+        fi
     fi
     
     log_success "ChatGPT CLI found at: $(which chatgpt)"
+    return 0
 }
 
 # Configure API key
@@ -69,18 +94,31 @@ test_cli() {
         return
     fi
     
-    # Test basic functionality
-    echo "Hello, can you respond with 'CLI is working'?" | chatgpt --stream &
-    local pid=$!
+    if ! command -v chatgpt &> /dev/null; then
+        log_error "ChatGPT CLI not available for testing"
+        return 1
+    fi
     
-    # Wait a few seconds for response
-    sleep 5
-    
-    if kill -0 $pid 2>/dev/null; then
-        kill $pid
-        log_success "CLI is responding (process was running)"
+    # Test basic functionality with timeout and error handling
+    log_info "Sending test query to ChatGPT CLI..."
+    if echo "Hello, can you respond with 'CLI is working'?" | timeout 15 chatgpt --stream 2>/dev/null | head -n 3; then
+        log_success "CLI is working properly"
     else
-        log_success "CLI test completed"
+        local exit_code=$?
+        case $exit_code in
+            124)
+                log_warning "CLI test timed out - check network connectivity"
+                log_info "Run './fix-connection-errors.sh' to diagnose connection issues"
+                ;;
+            127)
+                log_error "ChatGPT CLI command not found - check installation"
+                log_info "Run './fix-node-spawn-error.sh' to fix Node.js issues"
+                ;;
+            *)
+                log_warning "CLI test failed (exit code: $exit_code)"
+                log_info "This could be due to API key issues or network problems"
+                ;;
+        esac
     fi
 }
 
