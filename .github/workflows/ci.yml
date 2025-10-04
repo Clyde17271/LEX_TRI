@@ -1,15 +1,15 @@
-name: CI/CD Pipeline
+name: Python CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+    branches: [main]
 
 jobs:
-  lint:
+  build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -18,31 +18,54 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Upgrade pip and install dependencies (full, strict)
         run: |
           python -m pip install --upgrade pip
-          pip install flake8 black isort mypy
+          pip install --upgrade -r requirements.txt
+          pip install --upgrade flake8 black isort mypy bandit safety pytest pytest-cov pytest-asyncio
 
-      - name: Lint with flake8
-        run: |
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      - name: Lint with flake8 (strict)
+        run: flake8. --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Lint with flake8 (all)
+        run: flake8. --count --max-complexity=10 --max-line-length=127 --statistics
 
       - name: Check formatting with black
-        run: black --check . || true
+        run: black --check.
 
       - name: Check import sorting with isort
-        run: isort --check-only . || true
+        run: isort --check-only.
 
       - name: Type check with mypy
-        run: mypy . --ignore-missing-imports || true
+        run: mypy. --ignore-missing-imports
+
+      - name: Security check with bandit
+        run: bandit -r.
+
+      - name: Dependency security with safety
+        run: safety check
+
+      - name: Build with Makefile
+        run: make build
+
+      - name: Test with Makefile
+        run: make test
+
+      - name: Clean with Makefile
+        run: make clean
+
+      - name: Setup Testcontainers Cloud Client
+        if: "${{ secrets.TC_CLOUD_TOKEN != '' }}"
+        uses: atomicjar/testcontainers-cloud-setup-action@v1
+        with:
+          token: ${{ secrets.TC_CLOUD_TOKEN }}
 
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.11']
-
+        python-version: ["3.12", "3.13", "if not update"] 
+  
     steps:
       - uses: actions/checkout@v4
 
@@ -51,25 +74,14 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Cache pip packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install dependencies
+      - name: Upgrade pip and install dependencies (full, strict)
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-cov pytest-asyncio
+          pip install --upgrade -r requirements.txt
+          pip install --upgrade pytest pytest-cov pytest-asyncio
 
-      - name: Run unit tests
-        run: |
-          pytest test_temporal_viz.py -v --cov=temporal_viz --cov-report=xml || true
-          pytest test_mcp_integration.py -v --cov=mcp_server --cov-append --cov-report=xml || true
-          pytest test_exo_integration.py -v --cov=exo_integration --cov-append --cov-report=xml || true
+      - name: Run all tests with coverage
+        run: pytest --cov=temporal_viz --cov=mcp_server --cov=exo_integration --cov-report=xml
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v3
@@ -78,6 +90,16 @@ jobs:
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
+          fix_if_errors: True
+
+      - name: Build with Makefile
+        run: make build
+
+      - name: Test with Makefile
+        run: make test
+
+      - name: Clean with Makefile
+        run: make clean
 
   integration-test:
     runs-on: ubuntu-latest
@@ -91,10 +113,13 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Upgrade pip and install dependencies (full, strict)
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install --upgrade -r requirements.txt
+
+      - name: Build with Makefile
+        run: make build
 
       - name: Run LEX TRI diagnostics
         run: python lextri_runner.py
@@ -118,6 +143,9 @@ jobs:
             test_analysis.json
             test_viz.png
 
+      - name: Clean with Makefile
+        run: make clean
+
   security-scan:
     runs-on: ubuntu-latest
     permissions:
@@ -126,6 +154,22 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Upgrade pip and install dependencies (security tools)
+        run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade bandit safety
+
+      - name: Run bandit (security linter)
+        run: bandit -r.
+
+      - name: Run safety (dependency vuln scan)
+        run: safety check
 
       - name: Run Trivy security scan
         uses: aquasecurity/trivy-action@master
