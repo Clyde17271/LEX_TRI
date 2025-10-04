@@ -25,22 +25,22 @@ jobs:
           pip install --upgrade flake8 black isort mypy bandit safety pytest pytest-cov pytest-asyncio
 
       - name: Lint with flake8 (strict)
-        run: flake8. --count --select=E9,F63,F7,F82 --show-source --statistics
+        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
       - name: Lint with flake8 (all)
-        run: flake8. --count --max-complexity=10 --max-line-length=127 --statistics
+        run: flake8 . --count --max-complexity=10 --max-line-length=127 --statistics
 
       - name: Check formatting with black
-        run: black --check.
+        run: black --check .
 
       - name: Check import sorting with isort
-        run: isort --check-only.
+        run: isort --check-only .
 
       - name: Type check with mypy
-        run: mypy. --ignore-missing-imports
+        run: mypy . --ignore-missing-imports
 
       - name: Security check with bandit
-        run: bandit -r.
+        run: bandit -r .
 
       - name: Dependency security with safety
         run: safety check
@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.12", "3.13", "if not update"] 
+        python-version: ["3.11", "3.12"] 
   
     steps:
       - uses: actions/checkout@v4

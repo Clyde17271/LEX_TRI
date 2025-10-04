@@ -14,12 +14,29 @@ import os
 try:
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
-    from rich.console import Console
     HAS_MATPLOTLIB = True
 except ImportError:
     HAS_MATPLOTLIB = False
 
-console = Console()
+# Import Rich Console
+try:
+    from rich.console import Console
+    console = Console()
+    HAS_RICH = True
+except ImportError:
+    HAS_RICH = False
+    console = None
+
+
+def safe_print(message: str, style: str = "") -> None:
+    """Print message using Rich console if available, otherwise use standard print."""
+    if console:
+        if style:
+            console.print(f"[{style}]{message}[/{style}]")
+        else:
+            console.print(message)
+    else:
+        print(message)
 
 class TemporalPoint:
     """Represents a point in tri-temporal time."""
@@ -81,7 +98,7 @@ class TemporalTimeline:
         with open(filepath, 'w') as f:
             json.dump(data, f, indent=2)
         
-        console.print(f"[green]Timeline saved to {filepath}[/green]")
+        console.print(f"Timeline saved to {filepath}") if console else print(f"Timeline saved to {filepath}")
     
     @classmethod
     def load_from_json(cls, filepath: str) -> 'TemporalTimeline':
@@ -173,11 +190,11 @@ def visualize_timeline(
         Path to saved visualization file if output_path is provided
     """
     if not HAS_MATPLOTLIB:
-        console.print("[yellow]Matplotlib is required for visualization. Install with 'pip install matplotlib'[/yellow]")
+        print("Matplotlib is required for visualization. Install with 'pip install matplotlib'") if not console else console.print("[yellow]Matplotlib is required for visualization. Install with 'pip install matplotlib'[/yellow]")
         return None
     
     if not timeline.points:
-        console.print("[yellow]Timeline contains no points to visualize[/yellow]")
+        print("Timeline contains no points to visualize") if not console else console.print("[yellow]Timeline contains no points to visualize[/yellow]")
         return None
     
     # Set up the plot
@@ -246,7 +263,7 @@ def visualize_timeline(
             os.makedirs(output_dir, exist_ok=True)
             
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
-        console.print(f"[green]Visualization saved to {output_path}[/green]")
+        print(f"Visualization saved to {output_path}") if not console else console.print(f"[green]Visualization saved to {output_path}[/green]")
     
     # Show if requested
     if show_plot:
@@ -318,12 +335,13 @@ if __name__ == "__main__":
     # Visualize
     if HAS_MATPLOTLIB:
         visualize_timeline(example_timeline, "example_visualization.png")
-        console.print("[green]Example visualization created![/green]")
+        print("Example visualization created!") if not console else console.print("[green]Example visualization created![/green]")
     else:
-        console.print("[yellow]Matplotlib is required for visualization.[/yellow]")
+        print("Matplotlib is required for visualization.") if not console else console.print("[yellow]Matplotlib is required for visualization.[/yellow]")
     
     # Analyze anomalies
     anomalies = example_timeline.analyze_anomalies()
-    console.print(f"[bold]Detected {len(anomalies)} anomalies:[/bold]")
+    print(f"Detected {len(anomalies)} anomalies:") if not console else console.print(f"[bold]Detected {len(anomalies)} anomalies:[/bold]")
     for anomaly in anomalies:
-        console.print(f"[red]{anomaly['type'].upper()}[/red]: {anomaly['description']} (Severity: {anomaly['severity']})")
+        msg = f"{anomaly['type'].upper()}: {anomaly['description']} (Severity: {anomaly['severity']})"
+        print(msg) if not console else console.print(f"[red]{anomaly['type'].upper()}[/red]: {anomaly['description']} (Severity: {anomaly['severity']})")
