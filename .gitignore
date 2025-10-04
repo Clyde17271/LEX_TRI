@@ -255,6 +255,14 @@ vt_traces/
 tt_traces/
 dt_traces/
 
+# CI test artifacts
+test_timeline.json
+test_analysis.json
+test_viz.png
+test_*.png
+test_*.json
+example_visualization.png
+
 # Security and secrets
 .env
 .env.*
